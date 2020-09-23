@@ -147,15 +147,19 @@ var interval = setInterval(function(){
 
 post_id = '0'
 i = 0
-while i < 1:
+while i < 3:
     space = '  '
     adao = Adao()
+    # 判断当前决定节点
+    store_status_arr = json.loads(adao.get_store_status())
+    print(store_status_arr['decide_id'])
     post_data = adao.get_reply('30275381')
     print(post_data['id'], post_data['content'])
     for reply in post_data['replys']:
         if reply['id'] != 9999999:
             print(space+reply['id'], reply['content'])
-            if reply['content'].find('roll') != -1 and post_id != reply['id']:
+            # 找到roll并且id>记录id
+            if reply['content'].find('roll') != -1 and int(reply['id']) > int(store_status_arr['decide_id']):
                 post_id = reply['id']
                 print('find it', reply['id'])
 
@@ -169,6 +173,6 @@ while i < 1:
     store_status = adao.get_store_status()
     print(decide_list, store_status)
     # adao.post_reply('30275381', '当前store_status：'+store_status)
-    adao.post_reply('30275381', '当前decide_list：'+decide_list)
+    # adao.post_reply('30275381', '当前decide_list：'+decide_list)
     time.sleep(1)
     i = i + 1
