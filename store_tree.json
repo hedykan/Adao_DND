@@ -1,0 +1,7 @@
+[
+    {"store_node":0, "parent_node":0, "child_node":{"0":1, "1":2, "2":3}, "store_content":"\u8282\u70b91"},
+    {"store_node":1, "parent_node":0, "child_node":{"0":4}, "store_content":"\u8282\u70b92"},
+    {"store_node":2, "parent_node":0, "child_node":{"0":4}, "store_content":"\u8282\u70b93"},
+    {"store_node":3, "parent_node":0, "child_node":{"0":4}, "store_content":"\u8282\u70b94"},
+    {"store_node":4, "parent_node":{"0":1, "1":2, "2":3}, "child_node":{"0":4}, "store_content":"\u7ed3\u5c40"}
+]

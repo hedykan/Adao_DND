@@ -79,8 +79,9 @@ class Adao:
         fo.close()
         return store_status
 
-    def set_store_status(self, decide_node, decide_status, decide_id, decide_man):
-        store_status = {'decide_node':decide_node,
+    def set_store_status(self, store_id, store_node, decide_status, decide_id, decide_man):
+        store_status = {'store_id':store_id,
+                        'store_node':store_node,
                         'decide_status':decide_status,
                         'decide_id':decide_id,
                         'decide_man':decide_man}
@@ -89,90 +90,58 @@ class Adao:
         fo.write(store_status)
         fo.close
 
-text = '''
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title>跳转提示</title>
-<style type="text/css">
-*{ padding: 0; margin: 0; }
-body{ background: #fff; font-family: '微软雅黑'; color: #333; font-size: 16px; }
-.system-message{ padding: 24px 48px; }
-.system-message h1{ font-size: 100px; font-weight: normal; line-height: 120px; margin-bottom: 12px; }
-.system-message .jump{ padding-top: 10px}
-.system-message .jump a{ color: #333;}
-.system-message .success,.system-message .error{ line-height: 1.8em; font-size: 36px }
-.system-message .detail{ font-size: 12px; line-height: 20px; margin-top: 12px; display:none}
-</style>
-<meta name="__hash__" content="a55f18c7c0b239ec51c46861a630fc41_77b6482dbc8de0ba8444e01cee125b40" /></head>
-<body>
-<div class="system-message">
-<h1>:)</h1>
-<p class="success">回复成功</p>
-<p class="detail"></p>
-<p class="jump">
-页面自动 <a id="href" href="">跳转</a> 等待时间： <b id="wait">1</b>
-</p>
-</div>
-<script type="text/javascript">
-(function(){
-var wait = document.getElementById('wait'),href = document.getElementById('href').href;
-var interval = setInterval(function(){
-	var time = --wait.innerHTML;
-	if(time <= 0) {
-		location.href = href;
-		clearInterval(interval);
-	};
-}, 1000);
-})();
-</script>
-</body>
-</html>
-'''
+    def set_store_tree_node(self, store_node, parent_node, child_node, store_content):
+        store_node = {'store_node':store_node,
+                      'parent_node':parent_node,
+                      'child_node':child_node,
+                      'store_content':store_content}
+        return store_node
+
+    def get_store_tree(self):
+        fo = open('store_tree.json', 'r')
+        store_tree = fo.read()
+        fo.close()
+        return store_tree
 
 # html = etree.HTML(text)
 # result=etree.tostring(html,encoding='utf-8')
 # print(result.decode('utf-8'))
-# adao = Adao()
-# reply_do = adao.post_reply('30275381', 'roll检测测试')
-# print(reply_do)
-# adao = Adao()
-# decide_node = adao.set_decide_node(1, 'important', 123, 123)
-# decide_list = adao.get_decide_list()
-# print(decide_list, decide_node)
-# decide_list = adao.append_decide_node(decide_list, decide_node)
-# adao.set_decide_list(decide_list)
-# print(decide_list)
 
+print(json.dumps({1:'节点1',2:'结局'}))
 post_id = '0'
 i = 0
+adao = Adao()
+store_tree_arr = json.loads(adao.get_store_tree())
 while i < 3:
     space = '  '
-    adao = Adao()
     # 判断当前决定节点
     store_status_arr = json.loads(adao.get_store_status())
-    print(store_status_arr['decide_id'])
-    post_data = adao.get_reply('30275381')
+    print(store_status_arr['store_node'])
+    post_data = adao.get_reply(store_status_arr['store_id'])
     print(post_data['id'], post_data['content'])
     for reply in post_data['replys']:
         if reply['id'] != 9999999:
-            print(space+reply['id'], reply['content'])
+            # print(space+reply['id'], reply['content'])
             # 找到roll并且id>记录id
             if reply['content'].find('roll') != -1 and int(reply['id']) > int(store_status_arr['decide_id']):
                 post_id = reply['id']
+                store_node = store_tree_arr[store_status_arr['store_node']]['child_node']['0'];
                 print('find it', reply['id'])
 
-                decide_node = adao.set_decide_node(reply['id'], {'node':1, 'decide':1},'important', reply['userid'], reply['now'])
+                decide_node = adao.set_decide_node(reply['id'], {'node':store_node, 'decide':0},'important', reply['userid'], reply['now'])
                 decide_list = adao.get_decide_list()
                 decide_list = adao.append_decide_node(decide_list, decide_node)
                 adao.set_decide_list(decide_list)
-                adao.set_store_status(1, 1, reply['id'], reply['userid'])
+                adao.set_store_status(store_status_arr['store_id'], store_node, 'importent', reply['id'], reply['userid'])
 
-    decide_list = adao.get_decide_list()
-    store_status = adao.get_store_status()
-    print(decide_list, store_status)
-    # adao.post_reply('30275381', '当前store_status：'+store_status)
+                store_status = adao.get_store_status()
+                store_status_arr = json.loads(store_status)
+                store_content = reply['userid']+' 选择了'+'0'+'选项 '
+                store_content = store_content+store_tree_arr[store_status_arr['store_node']]['store_content'];
+                print(store_content)
+                adao.post_reply('30275381', store_content)
+                break
+
     # adao.post_reply('30275381', '当前decide_list：'+decide_list)
-    time.sleep(1)
+    time.sleep(30)
     i = i + 1
