@@ -28,10 +28,22 @@ class Adao:
         post_head_data = self.get_json(show_url)
         return post_head_data
 
-    def get_reply(self, show_id):
-        reply_url = 'https://adnmb3.com/Api/thread?'+'id='+show_id+'&page=0'
+    def get_reply(self, show_id, page = '0'):
+        reply_url = 'https://adnmb3.com/Api/thread?'+'id='+show_id+'&page='+page
         reply_data = self.get_json(reply_url)
         return reply_data
+
+    def get_reply_all(self, show_id):
+        post_data = self.get_reply(show_id)
+        post_data_arr = post_data['replys']
+        count = int(post_data['replyCount'])
+        page =  count // 20
+        i = 0
+        while i < page:
+            post_data = self.get_reply(show_id, str(i + 2))
+            post_data_arr.extend(post_data['replys'])
+            i = i + 1
+        return post_data_arr
 
     def post_reply(self, resto, content):
         adao_reply_thread = self.adao_url + '/Home/Forum/doReplyThread.html'
@@ -79,13 +91,17 @@ class Adao:
         fo.close()
         return store_status
 
-    def set_store_status(self, store_id, store_node, decide_status, decide_id, decide_man):
+    def set_store_status_arr(self, store_id, store_node, store_speaker, store_stop_floor, decide_id, decide_man):
         store_status = {'store_id':store_id,
                         'store_node':store_node,
-                        'decide_status':decide_status,
+                        'store_speaker':store_speaker,
+                        'store_stop_floor':store_stop_floor,
                         'decide_id':decide_id,
                         'decide_man':decide_man}
-        store_status = json.dumps(store_status)
+        return store_status
+
+    def set_store_status(self, store_status_arr):
+        store_status = json.dumps(store_status_arr)
         fo = open('store_status.json', 'w')
         fo.write(store_status)
         fo.close
@@ -107,41 +123,71 @@ class Adao:
 # result=etree.tostring(html,encoding='utf-8')
 # print(result.decode('utf-8'))
 
-print(json.dumps({1:'节点1',2:'结局'}))
 post_id = '0'
+sleep_time = 1
 i = 0
 adao = Adao()
 store_tree_arr = json.loads(adao.get_store_tree())
+store_content = '[store_start]\n'+store_tree_arr[0]['store_content']
+print(store_content)
+# adao.post_reply('30275381', store_content)
+# 查找故事开头
+store_status_arr = json.loads(adao.get_store_status())
+post_data = adao.get_reply_all(store_status_arr['store_id'])
+for reply in post_data:
+    if reply['id'] != 9999999:
+        if reply['content'].find('[store_start]') != -1 and int(reply['id']) > int(store_status_arr['store_stop_floor']) and reply['userid'] == store_status_arr['store_speaker']:
+            store_status_arr = json.loads(adao.get_store_status())
+            store_status_arr['store_stop_floor'] = reply['id']
+            store_status_arr['store_node'] = 0
+            adao.set_store_status(store_status_arr)
+            break
+time.sleep(1)
+
 while i < 3:
     space = '  '
     # 判断当前决定节点
     store_status_arr = json.loads(adao.get_store_status())
     print(store_status_arr['store_node'])
-    post_data = adao.get_reply(store_status_arr['store_id'])
-    print(post_data['id'], post_data['content'])
-    for reply in post_data['replys']:
+    title_data = adao.get_reply(store_status_arr['store_id'], '1')
+    print(title_data['id'], title_data['content'])
+    post_data = adao.get_reply_all(store_status_arr['store_id'])
+    for reply in post_data:
         if reply['id'] != 9999999:
-            # print(space+reply['id'], reply['content'])
-            # 找到roll并且id>记录id
-            if reply['content'].find('roll') != -1 and int(reply['id']) > int(store_status_arr['decide_id']):
+            # 找到roll并且id>记录store_stop_floor
+            if reply['content'].find('roll') != -1 and int(reply['id']) > int(store_status_arr['store_stop_floor']) and reply['userid'] != store_status_arr['store_speaker']:
                 post_id = reply['id']
-                store_node = store_tree_arr[store_status_arr['store_node']]['child_node']['0'];
+                store_node = store_tree_arr[store_status_arr['store_node']]['child_node']['0']
                 print('find it', reply['id'])
 
+                store_stop_floor = reply['id']
                 decide_node = adao.set_decide_node(reply['id'], {'node':store_node, 'decide':0},'important', reply['userid'], reply['now'])
                 decide_list = adao.get_decide_list()
                 decide_list = adao.append_decide_node(decide_list, decide_node)
                 adao.set_decide_list(decide_list)
-                adao.set_store_status(store_status_arr['store_id'], store_node, 'importent', reply['id'], reply['userid'])
+                store_status_arr = adao.set_store_status_arr(store_status_arr['store_id'], store_node, store_status_arr['store_speaker'], store_stop_floor, reply['id'], reply['userid'])
+                adao.set_store_status(store_status_arr)
 
+                # 生成故事节点
                 store_status = adao.get_store_status()
                 store_status_arr = json.loads(store_status)
-                store_content = reply['userid']+' 选择了'+'0'+'选项 '
+                store_content = '[store_node]\n'+reply['userid']+' 选择了'+'0'+'选项\n'
                 store_content = store_content+store_tree_arr[store_status_arr['store_node']]['store_content'];
                 print(store_content)
                 adao.post_reply('30275381', store_content)
+                time.sleep(60)
+
+                # 找到故事节点, 并更新故事停止楼层
+                post_data = adao.get_reply_all(store_status_arr['store_id'])
+                for reply in post_data:
+                    if reply['id'] != 9999999:
+                        if reply['content'].find('[store_node]') != -1 and int(reply['id']) > int(store_status_arr['store_stop_floor']) and reply['userid'] == store_status_arr['store_speaker']:
+                            store_status_arr = json.loads(adao.get_store_status())
+                            store_status_arr['store_stop_floor'] = reply['id']
+                            adao.set_store_status(store_status_arr)
+                            break
                 break
 
     # adao.post_reply('30275381', '当前decide_list：'+decide_list)
-    time.sleep(30)
+    time.sleep(sleep_time)
     i = i + 1
