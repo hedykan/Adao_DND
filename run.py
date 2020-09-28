@@ -164,13 +164,13 @@ while True:
         for reply in post_data:
             if reply['id'] != 9999999:
                 # 找到roll并且id>记录store_stop_floor
-                if reply['content'].find('roll') != -1 and int(reply['id']) > int(store_status_arr['store_stop_floor']) and reply['userid'] != store_status_arr['store_speaker']:
+                if reply['content'].find('r') != -1 and int(reply['id']) > int(store_status_arr['store_stop_floor']) and reply['userid'] != store_status_arr['store_speaker']:
                     post_id = reply['id']
                     store_node = store_tree_arr[store_status_arr['store_node']]['child_node'][str(adao.roll_set(reply['id']))]
                     print('find it', reply['id'])
 
                     store_stop_floor = reply['id']
-                    decide_node = adao.set_decide_node(reply['id'], {'node':store_node, 'decide':0},'important', reply['userid'], reply['now'])
+                    decide_node = adao.set_decide_node(reply['id'], {'node':store_node, 'decide':store_node},'important', reply['userid'], reply['now'])
                     decide_list = adao.get_decide_list()
                     decide_list = adao.append_decide_node(decide_list, decide_node)
                     adao.set_decide_list(decide_list)
