@@ -128,38 +128,34 @@ class Adao:
         elif roll_id >= 8 and roll_id <= 9:
             return 2
 
-# todo: 增加故事结束跳出或重启循环
-while True:
-    post_id = '0'
-    sleep_time = 10
-    i = 0
-    adao = Adao()
-    store_tree_arr = json.loads(adao.get_store_tree())
-    store_status_arr = json.loads(adao.get_store_status())
-    # 检测当前断点是否为结局
-    if store_tree_arr[store_status_arr['store_node']]['end_status'] == 1:
-        store_content = '[store_start]\n'+store_tree_arr[0]['store_content']
+    def store_node_create(self, store_content):
+        store_status_arr = json.loads(self.get_store_status())
         print(store_content)
-        adao.post_reply(store_status_arr['store_id'], store_content)
-        time.sleep(sleep_time)
-        # 查找故事开头
-        post_data = adao.get_reply_all(store_status_arr['store_id'])
-        for reply in post_data:
-            if reply['id'] != 9999999:
-                if reply['content'].find('[store_start]') != -1 and int(reply['id']) > int(store_status_arr['store_stop_floor']) and reply['userid'] == store_status_arr['store_speaker']:
-                    store_status_arr = json.loads(adao.get_store_status())
-                    store_status_arr['store_stop_floor'] = reply['id']
-                    store_status_arr['store_node'] = 0
-                    adao.set_store_status(store_status_arr)
-                    break
+        self.post_reply(store_status_arr['store_id'], store_content)
+        time.sleep(10)
+        return
 
-    while True:
-        space = '  '
-        # 判断当前决定节点
-        store_status_arr = json.loads(adao.get_store_status())
-        print(store_status_arr['store_node'])
-        title_data = adao.get_reply(store_status_arr['store_id'], '1')
-        print(title_data['id'], title_data['content'])
+    def store_start(self):
+        store_tree_arr = json.loads(self.get_store_tree())
+        store_status_arr = json.loads(self.get_store_status())
+        if store_tree_arr[store_status_arr['store_node']]['end_status'] == 1:
+            store_content = '[store_start]\n'+store_tree_arr[0]['store_content']
+            self.store_node_create(store_content)
+            # 查找故事开头
+            post_data = self.get_reply_all(store_status_arr['store_id'])
+            for reply in post_data:
+                if reply['id'] != 9999999:
+                    if reply['content'].find('[store_start]') != -1 and int(reply['id']) > int(store_status_arr['store_stop_floor']) and reply['userid'] == store_status_arr['store_speaker']:
+                        store_status_arr = json.loads(adao.get_store_status())
+                        store_status_arr['store_stop_floor'] = reply['id']
+                        store_status_arr['store_node'] = 0
+                        adao.set_store_status(store_status_arr)
+                        break
+        return
+
+    def store_roll(self):
+        store_tree_arr = json.loads(self.get_store_tree())
+        store_status_arr = json.loads(self.get_store_status())
         post_data = adao.get_reply_all(store_status_arr['store_id'])
         for reply in post_data:
             if reply['id'] != 9999999:
@@ -170,34 +166,55 @@ while True:
                     print('find it', reply['id'])
 
                     store_stop_floor = reply['id']
-                    decide_node = adao.set_decide_node(reply['id'], {'node':store_node, 'decide':store_node},'important', reply['userid'], reply['now'])
-                    decide_list = adao.get_decide_list()
-                    decide_list = adao.append_decide_node(decide_list, decide_node)
-                    adao.set_decide_list(decide_list)
-                    store_status_arr = adao.set_store_status_arr(store_status_arr['store_id'], store_node, store_status_arr['store_speaker'], store_stop_floor, reply['id'], reply['userid'])
-                    adao.set_store_status(store_status_arr)
+                    decide_node = self.set_decide_node(reply['id'], {'node':store_node, 'decide':store_node},'important', reply['userid'], reply['now'])
+                    decide_list = self.get_decide_list()
+                    decide_list = self.append_decide_node(decide_list, decide_node)
+                    self.set_decide_list(decide_list)
+                    store_status_arr = self.set_store_status_arr(store_status_arr['store_id'], store_node, store_status_arr['store_speaker'], store_stop_floor, reply['id'], reply['userid'])
+                    self.set_store_status(store_status_arr)
 
                     # 生成故事节点
-                    store_status = adao.get_store_status()
-                    store_status_arr = json.loads(store_status)
+                    store_status_arr = json.loads(self.get_store_status())
                     store_content = '[store_node]\n'+reply['userid']+' 选择了'+'0'+'选项\n'
                     store_content = store_content+store_tree_arr[store_status_arr['store_node']]['store_content'];
-                    print(store_content)
-                    adao.post_reply('30275381', store_content)
-                    time.sleep(sleep_time)
+                    self.store_node_create(store_content)
 
                     # 找到故事节点, 并更新故事停止楼层
-                    post_data = adao.get_reply_all(store_status_arr['store_id'])
+                    post_data = self.get_reply_all(store_status_arr['store_id'])
                     for reply in post_data:
                         if reply['id'] != 9999999:
                             if reply['content'].find('[store_node]') != -1 and int(reply['id']) > int(store_status_arr['store_stop_floor']) and reply['userid'] == store_status_arr['store_speaker']:
-                                store_status_arr = json.loads(adao.get_store_status())
+                                store_status_arr = json.loads(self.get_store_status())
                                 store_status_arr['store_stop_floor'] = reply['id']
-                                adao.set_store_status(store_status_arr)
+                                self.set_store_status(store_status_arr)
                                 break
                     break
-        store_status_arr = json.loads(adao.get_store_status())
+        return
+
+    def store_check_end(self):
+        store_tree_arr = json.loads(self.get_store_tree())
+        store_status_arr = json.loads(self.get_store_status())
         if store_tree_arr[store_status_arr['store_node']]['end_status'] == 1:
-            time.sleep(sleep_time)
+            return True;
+        return False
+
+# adao = Adao()
+# todo: 增加故事结束跳出或重启循环
+while True:
+    post_id = '0'
+    sleep_time = 10
+    i = 0
+    adao = Adao()
+    store_tree_arr = json.loads(adao.get_store_tree())
+    adao.store_start()
+    while True:
+        space = '  '
+        # 判断当前决定节点
+        store_status_arr = json.loads(adao.get_store_status())
+        print(store_status_arr['store_node'])
+        title_data = adao.get_reply(store_status_arr['store_id'], '1')
+        print(title_data['id'], title_data['content'])
+        adao.store_roll()
+        store_status_arr = json.loads(adao.get_store_status())
+        if adao.store_check_end():
             break
-        time.sleep(sleep_time)
