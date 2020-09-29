@@ -149,20 +149,20 @@ class Adao:
                         store_status_arr = json.loads(adao.get_store_status())
                         store_status_arr['store_stop_floor'] = reply['id']
                         store_status_arr['store_node'] = 0
-                        adao.set_store_status(store_status_arr)
+                        self.set_store_status(store_status_arr)
                         break
         return
 
     def store_roll(self):
         store_tree_arr = json.loads(self.get_store_tree())
         store_status_arr = json.loads(self.get_store_status())
-        post_data = adao.get_reply_all(store_status_arr['store_id'])
+        post_data = self.get_reply_all(store_status_arr['store_id'])
         for reply in post_data:
             if reply['id'] != 9999999:
                 # 找到roll并且id>记录store_stop_floor
                 if reply['content'].find('r') != -1 and int(reply['id']) > int(store_status_arr['store_stop_floor']) and reply['userid'] != store_status_arr['store_speaker']:
                     post_id = reply['id']
-                    store_node = store_tree_arr[store_status_arr['store_node']]['child_node'][str(adao.roll_set(reply['id']))]
+                    store_node = store_tree_arr[store_status_arr['store_node']]['child_node'][str(self.roll_set(reply['id']))]
                     print('find it', reply['id'])
 
                     store_stop_floor = reply['id']
@@ -175,7 +175,7 @@ class Adao:
 
                     # 生成故事节点
                     store_status_arr = json.loads(self.get_store_status())
-                    store_content = '[store_node]\n'+reply['userid']+' 选择了'+'0'+'选项\n'
+                    store_content = '[store_node]\n'+reply['userid']+' 选择了'+str(store_node)+'选项\n'
                     store_content = store_content+store_tree_arr[store_status_arr['store_node']]['store_content'];
                     self.store_node_create(store_content)
 
