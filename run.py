@@ -58,6 +58,11 @@ class Adao:
                 return i
             i += 1
         return -1
+    def set_store_status(self, store_status_arr):
+        store_status = json.dumps(store_status_arr)
+        fo = open('store_status.json', 'w')
+        fo.write(store_status)
+        fo.close
 
 
 adao = Adao()
