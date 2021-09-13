@@ -58,8 +58,13 @@ class Adao:
                 return i
             i += 1
         return -1
-    def set_store_status(self, store_status_arr):
-        store_status = json.dumps(store_status_arr)
+    def set_store_status(self):
+        arr = {}
+        arr['last_node'] = self.last_node
+        arr['last_node_index'] = self.last_node_index 
+        # arr['reply_data'] = self.reply_data
+        # arr['now_reply_data'] = self.now_reply_data
+        store_status = json.dumps(arr)
         fo = open('store_status.json', 'w')
         fo.write(store_status)
         fo.close
@@ -67,7 +72,4 @@ class Adao:
 
 adao = Adao()
 adao.get_reply_all('30275381')
-print(adao.check_point('[store_start]', adao.reply_data + adao.now_reply_data))
-print(adao.check_point('[store_start]', adao.reply_data + adao.now_reply_data))
-print(adao.check_point('[store_start]', adao.reply_data + adao.now_reply_data))
-print(adao.check_point('[store_start]', adao.reply_data + adao.now_reply_data))
+adao.set_store_status()
