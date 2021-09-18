@@ -20,14 +20,14 @@ class Adao:
 
     run_status = 0
 
-    def __init__(self, post_id):
+    def __init__(self):
         fo = open('store_status.json', 'r')
         store_status = fo.read()
         fo.close()
         arr = json.loads(store_status)
-        self.post_id = post_id
         self.run_status = arr['run_status']
         self.cookie = arr['cookie']
+        self.post_id = arr['post_id']
 
     # 请求JsonRes
     def get_json(self, url):
@@ -95,6 +95,7 @@ class Adao:
         arr = {}
         arr['run_status'] = self.run_status
         arr['cookie'] = self.cookie
+        arr['post_id'] = self.post_id
         store_status = json.dumps(arr)
         fo = open('store_status.json', 'w')
         fo.write(store_status)
@@ -122,11 +123,12 @@ class Adao:
         end = self.get_story_node()['Id']
         if end == 1:
             self.run_status = 2
-            self.post_reply(self.post_id, '[story_end]')
+            rep = self.story_post_process('[story_end]')
+            self.post_reply(self.post_id, rep)
         else:
             self.run_status = 0
-            res = self.get_story_node()
-            self.post_reply(self.post_id, '[story_node]'+res['Val'])
+            rep = self.story_post_process('[story_node]')
+            self.post_reply(self.post_id, rep)
 
         return
 
@@ -136,10 +138,19 @@ class Adao:
         #     return
         self.run_status = 0
         self.get_json(self.trpg_url+'/run/return?id=0')
-        res = self.get_story_node()
-        res = self.post_reply(self.post_id, '[story_start]'+res['Val'])
+        rep = self.story_post_process('[story_start]')
+        res = self.post_reply(self.post_id, rep)
         print(res)
         return
+
+    def story_post_process(self, check_word):
+        res = self.get_story_node()
+        s = check_word+'\n'+res['Val']+'\n\n'
+        i = 1
+        for output in res['Output']:
+            s = s+str(i)+' '+output['Val']+'\n'
+            i += 1
+        return s
 
     def story_point_check(self):
         arr = self.reply_data + self.now_reply_data
@@ -191,12 +202,12 @@ class Adao:
         # self.run_story_reset()
         self.set_story_status()
 
-adao = Adao('30275381')
+adao = Adao()
 adao.run_story_reset()
-time.sleep(5)
+time.sleep(10)
 while True:
     adao.run_do()
-    print('\nstory_scan:', adao.story_scan)
-    time.sleep(5)
+    print('story_scan:', adao.story_scan)
+    time.sleep(10)
     if adao.run_status == 2:
         break
