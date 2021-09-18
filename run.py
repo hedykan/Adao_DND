@@ -1,6 +1,7 @@
 import requests
 import json
 import time
+import re
 
 class Adao:
     post_id = ''
@@ -110,7 +111,8 @@ class Adao:
         index = self.story_scan['story_roll']
         # 操作 获取roll值并请求
         if index != -1 :
-            select = self.get_roll_num(data[index]['content'])
+            res = self.get_story_node()
+            select = self.get_roll_num(data[index]['content'], res)
             self.run_story_select(select)
             self.run_status = 1
         return
@@ -174,14 +176,21 @@ class Adao:
         self.story_point_check()
         return
 
-    def get_roll_num(self, content):
-        content
-        res = {
-            0: 2,
-            2: 3,
-            3: 1
-        }
-        return res.get(self.get_story_node()['Id'])
+    def get_roll_num(self, content, node_data):
+        pat = r'\d+'
+        comp = re.compile(pat)
+        match = comp.search(content)
+        if match != None:
+            select = int(match.group())
+            if select <= len(node_data['Output']):
+                return node_data['Output'][select - 1]['Id']        
+        return node_data['Output'][0]['Id']
+        # res = {
+        #     0: 2,
+        #     2: 3,
+        #     3: 1
+        # }
+        # return res.get(self.get_story_node()['Id'])
 
     def get_story_status(self):
         res = self.get_json(self.trpg_url+'/run/status_list')
@@ -208,6 +217,6 @@ time.sleep(10)
 while True:
     adao.run_do()
     print('story_scan:', adao.story_scan)
-    time.sleep(10)
     if adao.run_status == 2:
         break
+    time.sleep(10)
