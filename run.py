@@ -8,6 +8,7 @@ class Adao:
     adao_url = 'https://adnmb3.com'
     trpg_url = 'http://127.0.0.1:12345'
     cookie = {} 
+    cookie_name = ''
     now_page = 0
     now_reply_data = []
     reply_data = []
@@ -28,6 +29,7 @@ class Adao:
         arr = json.loads(store_status)
         self.run_status = arr['run_status']
         self.cookie = arr['cookie']
+        self.cookie_name = arr['cookie_name']
         self.post_id = arr['post_id']
 
     # 请求JsonRes
@@ -55,12 +57,12 @@ class Adao:
                 for reply in res['replys']:
                     if reply['id'] != 9999999:
                         self.now_reply_data.append(
-                            {"id": reply['id'], "content": reply['content']})
+                            {"id": reply['id'], "content": reply['content'], "cookie_name": reply['userid']})
                 break
             for reply in res['replys']:
                 if reply['id'] != 9999999:
                     self.reply_data.append(
-                        {"id": reply['id'], "content": reply['content']})
+                        {"id": reply['id'], "content": reply['content'], "cookie_name": reply['userid']})
 
     # 回帖
     def post_reply(self, resto, content):
@@ -84,6 +86,32 @@ class Adao:
             i += 1
         return -1
 
+    def check_obj_value(self, arr, value):
+        i = 0
+        while i < len(arr):
+            if arr[i] == value:
+                return i
+            i += 1
+        return -1
+
+    # 检测的n个检查点，不同的用户
+    def check_num_point(self, check_index, check_word, arr, num):
+        i = check_index + 1
+        find_index_arr = []
+        find_user_id_arr = []
+        while i < len(arr):
+            if (arr[i]['content'].find(check_word) != -1):
+                # 不是相同用户
+                if self.check_obj_value(find_user_id_arr, arr[i]['cookie_name']) == -1:
+                    print(arr[i], i)
+                    find_user_id_arr.append(arr[i]['cookie_name'])
+                    num -= 1
+                    find_index_arr.append(i)
+                    if num == 0:
+                        return find_index_arr
+            i += 1
+        return -1
+
     def check_last_point(self, check_index, check_word, arr):
         check_index = self.check_first_point(check_index, check_word, arr)
         swap = check_index
@@ -97,22 +125,27 @@ class Adao:
         arr['run_status'] = self.run_status
         arr['cookie'] = self.cookie
         arr['post_id'] = self.post_id
+        arr['cookie_name'] = self.cookie_name
         store_status = json.dumps(arr)
         fo = open('store_status.json', 'w')
         fo.write(store_status)
         fo.close
 
     # run_status = 0
+    # 新增多人roll点
     def run_roll(self):
         if self.run_status != 0:
             return
         data = self.reply_data+self.now_reply_data
         # 获取roll点
-        index = self.story_scan['story_roll']
+        # index = self.story_scan['story_roll']
+        # 检测五个roll节点
+        index = self.check_num_point(self.story_scan['story_node'], '[story_roll]', data, 5)
         # 操作 获取roll值并请求
         if index != -1 :
-            res = self.get_story_node()
-            select = self.get_roll_num(data[index]['content'], res)
+            # res = self.get_story_node()
+            # select = self.get_roll_num(data[index]['content'], res)
+            select = self.get_roll_most_num(data, index)
             self.run_story_select(select)
             self.run_status = 1
         return
@@ -135,11 +168,11 @@ class Adao:
         return
 
     # run_status = 2
-    def run_story_reset(self):
+    def run_story_reset(self, res_id):
         # if self.run_status != 2:
         #     return
         self.run_status = 0
-        self.get_json(self.trpg_url+'/run/return?id=0')
+        self.get_json(self.trpg_url+'/run/return?id='+str(res_id))
         rep = self.story_post_process('[story_start]')
         res = self.post_reply(self.post_id, rep)
         print(res)
@@ -156,8 +189,10 @@ class Adao:
 
     def story_point_check(self):
         arr = self.reply_data + self.now_reply_data
-        # check [story_start]
-        self.story_scan['story_start'] = self.check_last_point(self.story_scan['story_start'] - 1, '[story_start]', arr)
+        # check [story_start] 检测指定cookie_name的发言
+        start_index = self.check_last_point(self.story_scan['story_start'] - 1, '[story_start]', arr)
+        if arr[start_index]['cookie_name'] == self.cookie_name:
+            self.story_scan['story_start'] = start_index
         # check [story_node]
         self.story_scan['story_node'] = self.check_last_point(self.story_scan['story_start'], '[story_node]', arr)
         if self.story_scan['story_node'] == -1:
@@ -183,14 +218,30 @@ class Adao:
         if match != None:
             select = int(match.group())
             if select <= len(node_data['Output']):
-                return node_data['Output'][select - 1]['Id']        
+                return node_data['Output'][select - 1]['Id']
         return node_data['Output'][0]['Id']
-        # res = {
-        #     0: 2,
-        #     2: 3,
-        #     3: 1
-        # }
-        # return res.get(self.get_story_node()['Id'])
+    
+    def get_roll_most_num(self, post_arr, index_arr):
+        if index_arr == -1:
+            return -1
+        i = 0
+        check_arr = {}
+        res = self.get_story_node()
+        while i < len(index_arr):
+            # 获取真实节点
+            num = self.get_roll_num(post_arr[index_arr[i]]['content'], res)
+            # 桶排序
+            if num not in check_arr.keys():
+                check_arr[num] = 1
+            else:
+                check_arr[num] += 1
+            i += 1
+        max_num = 0
+        # 查找最大的值
+        for (key, value) in check_arr.items():
+            if value > max_num:
+                max_key = key
+        return max_key
 
     def get_story_status(self):
         res = self.get_json(self.trpg_url+'/run/status_list')
@@ -208,11 +259,14 @@ class Adao:
         self.run_story_renew()
         self.run_roll()
         self.run_check_end()
-        # self.run_story_reset()
         self.set_story_status()
 
 adao = Adao()
-adao.run_story_reset()
+adao.get_reply_all(adao.post_id)
+arr = adao.reply_data + adao.now_reply_data
+# index_arr = adao.check_num_point(0, "[story_start]", arr, 3)
+# num = adao.get_roll_most_num(arr, index_arr)
+adao.run_story_reset(0)
 time.sleep(10)
 while True:
     adao.run_do()
